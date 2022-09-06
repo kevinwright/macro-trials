@@ -1,0 +1,6 @@
+target/
+.bloop/
+.metals/
+.vscode/
+_site/
+sbt.json
