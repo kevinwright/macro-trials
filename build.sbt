@@ -11,6 +11,7 @@ inThisBuild(nocomma {
     // "-Xfatal-warnings",
     // , "-Xlog-implicits"
     //"-Ydebug",
+    "-Xcheck-macros",
     "-language:implicitConversions",
     "-language:existentials",
     "-feature",
