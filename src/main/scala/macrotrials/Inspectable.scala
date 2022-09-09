@@ -49,9 +49,6 @@ object Inspectable {
 
     // println("typerepr: " + TypeRepr.of[MemberType].typeSymbol.annotations.map(_.tpe.show))
 
-    // val annotationsInSymbol = caseFieldTypes collect 
-    //   case (name, at: AnnotatedType) => name -> at.typeSymbol.annotations.mkString(",")
-    // }
     val annotationInSymbol = caseFieldTypes collectFirst {
       case (name, AnnotatedType(_, Apply(Select(fnType, _), params))) if name == fieldName =>
         s"${fnType.tpe.show}" -> params.map(_.show)
@@ -59,74 +56,6 @@ object Inspectable {
     // annotationInSymbol foreach {
     //   case (name, params) => println(s"annotationInSymbol: $name(${params.mkString(", ")})")
     // }
-
-
-    // List(
-    //   i -> TypeRef(
-    //     TermRef(
-    //       ThisType(
-    //         TypeRef(
-    //           NoPrefix,
-    //           module class macrotrials
-    //         )
-    //       ),
-    //       object WrappedInt$package
-    //     ),
-    //     type WrappedInt
-    //   ),
-    //   i2 -> TypeRef(
-    //     ThisType(
-    //       TypeRef(
-    //         NoPrefix,
-    //         module class macrotrials
-    //       )
-    //     ),
-    //     class LegacyWrappedInt
-    //   ),
-    //   s -> TypeRef(
-    //     TermRef(
-    //       ThisType(
-    //         TypeRef(
-    //           NoPrefix,
-    //           module class scala
-    //         )
-    //       ),
-    //       object Predef
-    //     ),
-    //     type String
-    //   ),
-    //   d -> AnnotatedType(
-    //     TypeRef(
-    //       TermRef(
-    //         ThisType(
-    //           TypeRef(
-    //             NoPrefix,
-    //             module class <root>
-    //           )
-    //         ),
-    //         object scala
-    //       ),
-    //       class Double
-    //     ),
-    //     ConcreteAnnotation(
-    //       Apply(
-    //         Select(
-    //           New(Ident(StrAttr)),
-    //           <init>
-    //         ),
-    //         List(
-    //           Literal(Constant(boo!))
-    //         )
-    //       )
-    //     )
-    //   )
-    // )
-
-    // val annotationsInTree = caseFieldTypes collect {
-    //   case (name, AnnotatedType(_, ann)) => name -> s"$ann"
-    // }
-
-    // println(s"annotationsInTree: $annotationsInTree")
     // println("======")
 
     // println(TypeTree.of[T])
@@ -157,8 +86,6 @@ object Inspectable {
           )
         }
     }
-    // val lookup = caseFieldTypes[P].toMap
-    // val tpeName = lookup(name)
     
 
 
@@ -170,22 +97,8 @@ object Inspectable {
       ValDef(name, tpe, _) = fieldSym.tree
     yield
       name -> tpe.tpe
-        // //ts.caseFields.find(_.name == name).getOrElse(Symbol.noSymbol)
-        // tpe.tpe match
-        //   // TODO - Ensure this is a `@field(num)` annotation. 
-        //   case AnnotatedType(tpe, Apply(term, List(Literal(IntConstant(num))))) =>
-        //     (fieldSym.name, num.asInstanceOf[Int])
-        //   case _ => (fieldSym.name, 0)
-
-  // inline def getElemTypeNames[P, M <: Mirror.ProductOf[P]](m: M, names: List[String]): List[String] = 
-  //   names map {name =>
-  //     // fieldTypeName[P]("i")
-  //     fieldTypeName[P](name)
-  //   }
-
 
   inline private def inspectFields[ProductType, FieldTypes <: Tuple, Labels <: Tuple]: List[FieldInfo] =
-    // val caseFieldTypes = determineCaseFieldTypes[ProductType]
     inline erasedValue[FieldTypes] match
       case _: (fieldType *: fieldTypes) =>
         inline erasedValue[Labels] match
