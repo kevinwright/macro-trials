@@ -1,3 +1,5 @@
+package macrotrials
+
 trait Inspectable[T] {
   def inspect(): String
 }
@@ -25,40 +27,149 @@ object Inspectable {
       case m: Mirror.Of[T] => derived[T]
       case _ => compiletime.error("Unable to construct Inspectable")
     }
+  
+  inline def mkFieldInfo[ProdType, MemberLbl, MemberType]: FieldInfo =
+    ${mkFieldInfoImplMacro[ProdType, MemberLbl, MemberType]}
 
-  inline def getElemLabels[A <: Tuple]: List[String] = inline erasedValue[A] match {
-    case _: EmptyTuple => Nil // stop condition - the tuple is empty
-    case _: (head *: tail) =>  // yes, in scala 3 we can match on tuples head and tail to deconstruct them step by step
-        val headElementLabel = constValue[head].toString // bring the head label to value space
-        val tailElementLabels = getElemLabels[tail] // recursive call to get the labels from the tail
-        headElementLabel :: tailElementLabels // concat head + tail
-    }
+  inline def enquote(s: String) = s"\"s\""
+  inline def dequote(s: String) = s.stripPrefix("\"").stripSuffix("\"")
 
-
-  inline def fieldTypeName[P](fieldName: String): String =
-    ${fieldTypeNameImplMacro[P]('fieldName)}
-
-  private def fieldTypeNameImplMacro[P](using Type[P])(using Quotes)(fieldNameExpr: Expr[String]): Expr[String] =
+  private def mkFieldInfoImplMacro[
+    ProdType: Type,
+    MemberLbl: Type,
+    MemberType: Type
+  ](using Quotes): Expr[FieldInfo] =
     import quotes.reflect._
-    println(s"macrodebug: seeking ${fieldNameExpr.value}")
-    fieldNameExpr.value match
-      case Some(name) =>
-        println(s"macrodebug: $name")
-        val lookup = caseFieldTypes[P].toMap
-        Expr(lookup(name))
-      case _ => 
-        // TODO - compile time exception
-        report.error(s"Unable to find compile time fieldname from: ${fieldNameExpr.show}")
-        '{???}
 
-  private def caseFieldTypes[P](using Type[P])(using Quotes): Seq[(String, String)] =
+    val caseFieldTypes = determineCaseFieldTypes[ProdType]
+    
+    val fieldName = dequote(TypeTree.of[MemberLbl].show)
+    val fieldType = TypeTree.of[MemberType].show
+    println(s"macrodebug: seeking $fieldName: $fieldType")
+
+    // println("typerepr: " + TypeRepr.of[MemberType].typeSymbol.annotations.map(_.tpe.show))
+
+    // val annotationsInSymbol = caseFieldTypes collect 
+    //   case (name, at: AnnotatedType) => name -> at.typeSymbol.annotations.mkString(",")
+    // }
+    val annotationInSymbol = caseFieldTypes collectFirst {
+      case (name, AnnotatedType(_, Apply(Select(fnType, _), params))) if name == fieldName =>
+        s"${fnType.tpe.show}" -> params.map(_.show)
+    }
+    // annotationInSymbol foreach {
+    //   case (name, params) => println(s"annotationInSymbol: $name(${params.mkString(", ")})")
+    // }
+
+
+    // List(
+    //   i -> TypeRef(
+    //     TermRef(
+    //       ThisType(
+    //         TypeRef(
+    //           NoPrefix,
+    //           module class macrotrials
+    //         )
+    //       ),
+    //       object WrappedInt$package
+    //     ),
+    //     type WrappedInt
+    //   ),
+    //   i2 -> TypeRef(
+    //     ThisType(
+    //       TypeRef(
+    //         NoPrefix,
+    //         module class macrotrials
+    //       )
+    //     ),
+    //     class LegacyWrappedInt
+    //   ),
+    //   s -> TypeRef(
+    //     TermRef(
+    //       ThisType(
+    //         TypeRef(
+    //           NoPrefix,
+    //           module class scala
+    //         )
+    //       ),
+    //       object Predef
+    //     ),
+    //     type String
+    //   ),
+    //   d -> AnnotatedType(
+    //     TypeRef(
+    //       TermRef(
+    //         ThisType(
+    //           TypeRef(
+    //             NoPrefix,
+    //             module class <root>
+    //           )
+    //         ),
+    //         object scala
+    //       ),
+    //       class Double
+    //     ),
+    //     ConcreteAnnotation(
+    //       Apply(
+    //         Select(
+    //           New(Ident(StrAttr)),
+    //           <init>
+    //         ),
+    //         List(
+    //           Literal(Constant(boo!))
+    //         )
+    //       )
+    //     )
+    //   )
+    // )
+
+    // val annotationsInTree = caseFieldTypes collect {
+    //   case (name, AnnotatedType(_, ann)) => name -> s"$ann"
+    // }
+
+    // println(s"annotationsInTree: $annotationsInTree")
+    // println("======")
+
+    // println(TypeTree.of[T])
+    // println(TypeTree.of[T].tpe)
+
+    val fieldNameExpr = Expr(fieldName)
+    val fieldTypeExpr = Expr(fieldType)
+    annotationInSymbol match {
+      case None =>
+        '{
+          FieldInfo(
+            name = $fieldNameExpr,
+            typeName = $fieldTypeExpr,
+            annotation = None
+          )
+        }
+      case Some(name, params) =>
+        '{
+          FieldInfo(
+            name = $fieldNameExpr,
+            typeName = $fieldTypeExpr,
+            annotation = Some(
+              FieldAnnotation(
+                className = ${Expr(name)},
+                params = ${Expr(params)}
+              )
+            )
+          )
+        }
+    }
+    // val lookup = caseFieldTypes[P].toMap
+    // val tpeName = lookup(name)
+    
+
+
+  private def determineCaseFieldTypes[P](using Type[P])(using q: Quotes): Seq[(String, q.reflect.TypeRepr)] =
     import quotes.reflect._
     val ts = TypeTree.of[P].tpe.typeSymbol
     for
       fieldSym <- ts.caseFields
-      ValDef(name, tpe, optDefault) = fieldSym.tree
+      ValDef(name, tpe, _) = fieldSym.tree
     yield
-      name -> tpe.tpe.toString
+      name -> tpe.tpe
         // //ts.caseFields.find(_.name == name).getOrElse(Symbol.noSymbol)
         // tpe.tpe match
         //   // TODO - Ensure this is a `@field(num)` annotation. 
@@ -66,19 +177,30 @@ object Inspectable {
         //     (fieldSym.name, num.asInstanceOf[Int])
         //   case _ => (fieldSym.name, 0)
 
-  inline def getElemTypeNames[P, M <: Mirror.ProductOf[P]](m: M, names: List[String]): List[String] = 
-    names map {name =>
-      // fieldTypeName[P]("i")
-      fieldTypeName[P](name)
-    }
+  // inline def getElemTypeNames[P, M <: Mirror.ProductOf[P]](m: M, names: List[String]): List[String] = 
+  //   names map {name =>
+  //     // fieldTypeName[P]("i")
+  //     fieldTypeName[P](name)
+  //   }
+
+
+  inline private def inspectFields[ProductType, FieldTypes <: Tuple, Labels <: Tuple]: List[FieldInfo] =
+    // val caseFieldTypes = determineCaseFieldTypes[ProductType]
+    inline erasedValue[FieldTypes] match
+      case _: (fieldType *: fieldTypes) =>
+        inline erasedValue[Labels] match
+          case _: (fieldLabel *: fieldLabels) =>
+            val fieldInfo = mkFieldInfo[ProductType, fieldLabel, fieldType]
+            fieldInfo :: inspectFields[ProductType, fieldTypes, fieldLabels]
+          case _: EmptyTuple => compiletime.error("LOGIC ERROR: Ran out of field labels for field types")
+      case _: EmptyTuple => Nil  
 
   inline def derivedProduct[P, M <: Mirror.ProductOf[P]](m: M): Inspectable[P] =
     new Inspectable[P]:
-      val label = constValue[m.MirroredLabel].toString
-      val elemNames = getElemLabels[m.MirroredElemLabels]
-      val elemTypeNames = getElemTypeNames[P, M](m, elemNames)
+      val className = constValue[m.MirroredLabel].toString
+      val fieldInfos = inspectFields[P ,m.MirroredElemTypes, m.MirroredElemLabels ]
       override def inspect(): String =
-        label + ": " + elemTypeNames.mkString("[", ", ", "] ") + elemNames.mkString("(", ", ", ")")
+        className + ": " + fieldInfos.mkString("[", ", ", "] ")
 
 
   inline def derivedSum[T, M <: Mirror.SumOf[T]](m: M): Inspectable[T] = 
