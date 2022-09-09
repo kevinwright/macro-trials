@@ -86,8 +86,6 @@ object Inspectable {
           )
         }
     }
-    
-
 
   private def determineCaseFieldTypes[P](using Type[P])(using q: Quotes): Seq[(String, q.reflect.TypeRepr)] =
     import quotes.reflect._

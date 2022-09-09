@@ -15,6 +15,8 @@ case class InterestingClass(
     val wi = WrappedInt(42)
     val wi2 = LegacyWrappedInt(42)
 
+    summon[Ordering[Logarithms.Logarithm]]
+
     // println("The tree is: " + showTree(wi))
     // println("The tree is: " + showTree(WrappedInt(42)))
     // println("The tree is: " + showTree(wi2))
