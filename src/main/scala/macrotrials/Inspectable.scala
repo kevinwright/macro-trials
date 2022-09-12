@@ -62,13 +62,16 @@ object Inspectable:
     // println(TypeTree.of[T].tpe)
 
     val fieldNameExpr = Expr(fieldName)
-    // val inspectedFieldType = summonFrom {
-    //   case fi: FieldInspectable[MemberType] => fi.inspect()
-    //   case _ => fieldType
-    // }
-    val inspectedFieldType = summonInline[FieldInspectable[MemberType]].inspect()
-    val fieldTypeExpr = Expr(inspectedFieldType)
-    // val fieldTypeExpr = Expr(fieldType)
+    val fieldTypeExpr = Expr(fieldType)
+
+    assert(
+      summonInline[FieldInspectable[MemberType]].inspect()
+    )
+    
+    // val inspectedFieldType = summon[FieldInspectable[MemberType]].inspect()
+    // val fieldTypeExpr = Expr(inspectedFieldType)
+
+    
     annotationInSymbol match {
       case None =>
         '{

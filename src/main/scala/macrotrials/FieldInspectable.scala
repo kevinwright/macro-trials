@@ -8,10 +8,11 @@ trait FieldInspectable[T]:
 
 object FieldInspectable:
 
-  // inline given [Int]: FieldInspectable[Int] = () => "Int"
-  // inline given [Long]: FieldInspectable[Long] = () => "Long"
-  // inline given [Float]: FieldInspectable[Float] = () => "Float"
-  inline given [Double]: FieldInspectable[Double] = () => "Double"
-  // inline given [String]: FieldInspectable[String] = () => "String"
+  inline given FieldInspectable[Int] = () => "Int"
+  inline given FieldInspectable[Long] = () => "Long"
+  inline given FieldInspectable[Float] = () => "Float"
+  inline given FieldInspectable[Double] = () => "Double"
+  inline given FieldInspectable[String] = () => "String"
 
-  inline given [AnyRef <: Product ]: FieldInspectable[AnyRef] = () => "T"
+  inline given [T <: Product]: FieldInspectable[Product] = () => "Product"
+  inline given FieldInspectable[Any] = () => "Any"
