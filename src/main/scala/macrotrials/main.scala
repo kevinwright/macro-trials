@@ -29,7 +29,7 @@ case class InterestingClass(
     println(summon[FieldInspectable[String]].inspect())
     println(summon[FieldInspectable[WrappedInt]].inspect())
     println(summon[FieldInspectable[LegacyWrappedInt]].inspect())
-    // println(summon[FieldInspectable[InterestingClass]].inspect())
+    println(summon[FieldInspectable[InterestingClass]].inspect())
     println("==========")
     println()
 

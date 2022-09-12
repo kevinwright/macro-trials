@@ -40,14 +40,12 @@ object Inspectable:
     MemberType: Type
   ](using Quotes): Expr[FieldInfo] =
     import quotes.reflect._
-
-    val caseFieldTypes = determineCaseFieldTypes[ProdType]
     
     val fieldName = dequote(TypeTree.of[MemberLbl].show)
     val fieldType = TypeTree.of[MemberType].show
     println(s"macrodebug: seeking $fieldName: $fieldType")
 
-    // println("typerepr: " + TypeRepr.of[MemberType].typeSymbol.annotations.map(_.tpe.show))
+    val caseFieldTypes = determineCaseFieldTypes[ProdType]
 
     val annotationInSymbol = caseFieldTypes collectFirst {
       case (name, AnnotatedType(_, Apply(Select(fnType, _), params))) if name == fieldName =>
@@ -58,18 +56,18 @@ object Inspectable:
     // }
     // println("======")
 
-    // println(TypeTree.of[T])
-    // println(TypeTree.of[T].tpe)
-
+    // Type[MemberType] match {
+    //   case '[a] => Expr.summon[a]
+    // }
     val fieldNameExpr = Expr(fieldName)
-    val fieldTypeExpr = Expr(fieldType)
+    // val fieldTypeExpr = Expr(fieldType)
 
-    assert(
-      summonInline[FieldInspectable[MemberType]].inspect()
-    )
-    
-    // val inspectedFieldType = summon[FieldInspectable[MemberType]].inspect()
-    // val fieldTypeExpr = Expr(inspectedFieldType)
+    // import FieldInspectable.*
+    // summonInline[FieldInspectable[MemberType]].inspect()
+
+    // Implicits.search()
+    val inspectedFieldType = summonInline[FieldInspectable[MemberType]].inspect()
+    val fieldTypeExpr = Expr(inspectedFieldType)
 
     
     annotationInSymbol match {
