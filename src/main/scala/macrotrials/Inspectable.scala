@@ -1,10 +1,10 @@
 package macrotrials
 
-trait Inspectable[T] {
+trait Inspectable[T]:
   def inspect(): String
-}
 
-object Inspectable {
+
+object Inspectable:
   import deriving.*
   import scala.compiletime.*
   import scala.quoted.*
@@ -62,7 +62,13 @@ object Inspectable {
     // println(TypeTree.of[T].tpe)
 
     val fieldNameExpr = Expr(fieldName)
-    val fieldTypeExpr = Expr(fieldType)
+    // val inspectedFieldType = summonFrom {
+    //   case fi: FieldInspectable[MemberType] => fi.inspect()
+    //   case _ => fieldType
+    // }
+    val inspectedFieldType = summonInline[FieldInspectable[MemberType]].inspect()
+    val fieldTypeExpr = Expr(inspectedFieldType)
+    // val fieldTypeExpr = Expr(fieldType)
     annotationInSymbol match {
       case None =>
         '{
@@ -117,4 +123,4 @@ object Inspectable {
   inline def derivedSum[T, M <: Mirror.SumOf[T]](m: M): Inspectable[T] = 
     compiletime.error("Can't inspect sum types")
 
-}
+
