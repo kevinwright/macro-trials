@@ -25,14 +25,6 @@ object FieldInspectable:
   inline given FieldInspectable[Float] = () => "Float"
   inline given FieldInspectable[Double] = () => "Double"
   inline given FieldInspectable[String] = () => "String"
-
-  // inline given given_FieldInspectable_Seq[T, Coll[_] <: Seq[_], TheFlags <: InspectableFlags]
-  //   (using flags: TheFlags)
-  //   (using nested: FieldInspectable[T]): FieldInspectable[Coll[T]] =
-  //     inline erasedValue[flags.SeqIsInspectable] match
-  //       case _: EnabledFlag => 
-  //         () => s"Seq[${nested.inspect()}]"
-  //       case _ => compiletime.error("Sequence inspection not enabled")
       
   inline given [T, Coll[_] <: Iterable[_], TheFlags <: InspectableFlags]
     (using flags: TheFlags)
