@@ -33,7 +33,6 @@ case class InterestingClass(
     println(summon[FieldInspectable[WrappedInt]].inspect())
     println(summon[FieldInspectable[LegacyWrappedInt]].inspect())
     println(summon[FieldInspectable[InterestingClass]].inspect())
-    println(summon[AnyValMirror[LegacyWrappedInt]])
     println("==========")
     println()
 

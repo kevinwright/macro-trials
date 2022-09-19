@@ -64,7 +64,10 @@ object FieldInspectable:
     //   )
     // )
 
-    def extractFlags: Map[String, Boolean] = 
+    // Every type member in `TheFlags` adds another level of nesting to the resulting
+    // `RefinedType` tree, so we drag 'em all out using recursion
+
+    val flags =
       def loop(acc: Map[String, Boolean], tpe: TypeRepr): Map[String, Boolean] =
         tpe match {
           case Refinement(parent, name, TypeBounds(_,TermRef(_,enabledType))) =>
@@ -74,8 +77,6 @@ object FieldInspectable:
           case _ => acc  
         }
       loop(Map.empty, TypeTree.of[TheFlags].tpe)
-
-    val flags = extractFlags
 
     val anyValEnabled: Boolean = flags("AnyValIsInspectable")
     val caseClassEnabled: Boolean = flags("CaseClassIsInspectable")
