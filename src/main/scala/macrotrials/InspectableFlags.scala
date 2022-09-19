@@ -4,23 +4,31 @@ sealed trait EnabledFlag
 object EnabledTrue extends EnabledFlag
 object EnabledFalse extends EnabledFlag
 
-trait InspectableFlag[T] {
-  type Enabled <: EnabledFlag
-}
-
-object InspectableFlag  {
-  transparent inline def default[T]: InspectableFlag[T] =
-    new InspectableFlag[T] { type Enabled = EnabledFalse.type }
+trait InspectableFlags {
+  type AnyValIsInspectable <: EnabledFlag
+  type CaseClassIsInspectable <: EnabledFlag
 }
 
 object InspectableFlags {
+  object PrimitivesOnly:
+    transparent inline given InspectableFlags =
+      new InspectableFlags {
+        type AnyValIsInspectable = EnabledFalse.type
+        type CaseClassIsInspectable = EnabledFalse.type
+      }
 
-  object AnyValFieldIsInspectable:
-    transparent inline given InspectableFlag[AnyVal] =
-      new InspectableFlag[AnyVal] { type Enabled = EnabledTrue.type }
+  object FullMonty:
+    transparent inline given InspectableFlags =
+      new InspectableFlags {
+        type AnyValIsInspectable = EnabledTrue.type
+        type CaseClassIsInspectable = EnabledTrue.type
+      }
 
-  object CaseClassFieldIsInspectable:
-    transparent inline given InspectableFlag[Product] =
-      new InspectableFlag[Product] { type Enabled = EnabledTrue.type }
+  object Mixed:
+    transparent inline given InspectableFlags =
+      new InspectableFlags {
+        type AnyValIsInspectable = EnabledTrue.type
+        type CaseClassIsInspectable = EnabledFalse.type
+      }
 
 }
