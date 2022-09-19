@@ -22,7 +22,9 @@ case class InterestingClass(
     // println("The tree is: " + showTree(wi2))
     // println("The tree is: " + showTree(LegacyWrappedInt(42)))
 
-    import FieldInspectable.ProductInstance.given
+    // import FieldInspectable.ProductInstance.given
+    // import FieldInspectable.AnyValInstance.given
+    import InspectableFlags.AnyValFieldIsInspectable.given
 
     println("FieldInspectables:")
     println(summon[FieldInspectable[Int]].inspect())
@@ -32,6 +34,7 @@ case class InterestingClass(
     println(summon[FieldInspectable[WrappedInt]].inspect())
     println(summon[FieldInspectable[LegacyWrappedInt]].inspect())
     println(summon[FieldInspectable[InterestingClass]].inspect())
+    println(summon[AnyValMirror[LegacyWrappedInt]])
     println("==========")
     println()
 

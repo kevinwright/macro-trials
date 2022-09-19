@@ -88,7 +88,7 @@ object Inspectable:
     val ts = TypeTree.of[P].tpe.typeSymbol
     for
       fieldSym <- ts.caseFields
-      ValDef(name, tpe, _) = fieldSym.tree
+      ValDef(name, tpe, _) = fieldSym.tree: @unchecked
     yield
       name -> tpe.tpe
 
