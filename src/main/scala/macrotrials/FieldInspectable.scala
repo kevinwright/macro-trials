@@ -18,11 +18,8 @@ object FieldInspectable:
   inline given FieldInspectable[Double] = () => "Double"
   inline given FieldInspectable[String] = () => "String"
 
-  transparent inline given [
-    P <: Product,
-    TheFlags <: InspectableFlags
-  ]
-  (using flags: TheFlags = InspectableFlags.PrimitivesOnly.given_InspectableFlags): FieldInspectable[P] =
+  transparent inline given [P <: Product, TheFlags <: InspectableFlags]
+  (using flags: TheFlags): FieldInspectable[P] =
     ${productMacro[P, TheFlags]}
 
   private def productMacro[
@@ -41,28 +38,29 @@ object FieldInspectable:
     //     ),
     //     name = AnyValIsInspectable,
     //     info = TypeBounds(
-    //       lo = TermRef(
-    //         qual = ThisType(TypeRef(NoPrefix,module class macrotrials)),
-    //         name = object EnabledFalse
+    //       lo = TypeRef(
+    //         repr = ThisType(TypeRef(NoPrefix,module class macrotrials)),
+    //         name = class EnabledTrue
     //       ),
-    //       hi = TermRef(
-    //         qual = ThisType(TypeRef(NoPrefix,module class macrotrials)),
-    //         name = object EnabledFalse
+    //       hi = TypeRef(
+    //         repr = ThisType(TypeRef(NoPrefix,module class macrotrials)),
+    //         name = class EnabledTrue
     //       )
     //     )
     //   ),
     //   name = CaseClassIsInspectable,
     //   info = TypeBounds(
-    //     lo = TermRef(
-    //       qual = ThisType(TypeRef(NoPrefix,module class macrotrials)),
-    //       name = object EnabledFalse
+    //     lo = TypeRef(
+    //       repr = ThisType(TypeRef(NoPrefix,module class macrotrials)),
+    //       name = class EnabledFalse
     //     ),
-    //     hi = TermRef(
-    //       qual = ThisType(TypeRef(NoPrefix,module class macrotrials)),
-    //       name = object EnabledFalse
+    //     hi = TypeRef(
+    //       repr = ThisType(TypeRef(NoPrefix,module class macrotrials)),
+    //       name = class EnabledFalse
     //     )
     //   )
     // )
+    
 
     // Every type member in `TheFlags` adds another level of nesting to the resulting
     // `RefinedType` tree, so we drag 'em all out using recursion
@@ -70,7 +68,7 @@ object FieldInspectable:
     val flags =
       def loop(acc: Map[String, Boolean], tpe: TypeRepr): Map[String, Boolean] =
         tpe match {
-          case Refinement(parent, name, TypeBounds(_,TermRef(_,enabledType))) =>
+          case Refinement(parent, name, TypeBounds(_,TypeRef(_,enabledType))) =>
             val isEnabled = enabledType == "EnabledTrue"
             val nextAcc = acc + (name -> isEnabled)
             loop(nextAcc, parent)
