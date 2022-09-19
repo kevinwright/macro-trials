@@ -4,7 +4,14 @@ import scala.annotation.{implicitNotFound, targetName}
 import scala.deriving.Mirror
 import MacroUtils.*
 
-@implicitNotFound("Could not find an implicit FieldInspectable[${T}]")
+@implicitNotFound(
+  "Could not find an implicit FieldInspectable[${T}]\n" +
+  "You may be missing an `InspectableFlags` instance\n" +
+  "Try one of the following:\n" +
+  " - import macrotrials.InspectableFlags.PrimitivesOnly.given\n" +
+  " - import macrotrials.InspectableFlags.Mixed.given\n" +
+  " - import macrotrials.InspectableFlags.FullMonty.given"
+)
 trait FieldInspectable[T]:
   def inspect(): String
 

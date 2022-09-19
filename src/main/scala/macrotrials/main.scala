@@ -22,8 +22,8 @@ case class InterestingClass(
     // println("The tree is: " + showTree(wi2))
     // println("The tree is: " + showTree(LegacyWrappedInt(42)))
 
-    import InspectableFlags.Mixed.given
-    // import InspectableFlags.FullMonty.given
+    // import InspectableFlags.Mixed.given
+    import InspectableFlags.FullMonty.given
 
     println("FieldInspectables:")
     println(summon[FieldInspectable[Int]].inspect())
