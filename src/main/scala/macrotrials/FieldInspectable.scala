@@ -64,8 +64,6 @@ object FieldInspectable:
     //   )
     // )
 
-    // if true then println("true") else compiletime.error("false")
-
     def extractFlags: Map[String, Boolean] = 
       def loop(acc: Map[String, Boolean], tpe: TypeRepr): Map[String, Boolean] =
         tpe match {
@@ -101,10 +99,7 @@ object FieldInspectable:
         else '{compiletime.error("case class inspection not enabled")}
 
   object UnknownInstance:
-    // @targetName("given_FieldInspectable_Product")
-    // inline given [T <: Product]: FieldInspectable[T] = () => "Product"
     inline given [T]: FieldInspectable[T] = ${unknownMacro[T]}
-
 
     private def unknownMacro[T](using Type[T])(using Quotes): Expr[FieldInspectable[T]] =
       import quotes.reflect._
@@ -116,58 +111,3 @@ object FieldInspectable:
       }
 
 
-/*
-
-
-  object AnyValInstance:
-    import scala.util.NotGiven
-
-
-    // inline given [P <: Product with AnyVal]: FieldInspectable[P] =
-    //   ${anyValMacro[P]}
-    transparent inline given [P <: Product](using NotGiven[Mirror.ProductOf[P]]): FieldInspectable[P] =
-      ${anyValMacro[P]}
-
-    private def anyValMacro[P](using Type[P])(using Quotes): Expr[FieldInspectable[P]] =
-      import quotes.reflect._
-      val name = Type.show[P]
-      '{
-        new FieldInspectable[P] {
-          def inspect() = ${Expr("AnyVal: " + name)}
-        }
-      }
-
-    // inline given [
-    //   T <: Product with AnyVal,
-    //   M <: Mirror.ProductOf[T]
-    // ]: FieldInspectable[T] = () => "AnyVal: " + typeName[T]
-
-    // inline given [
-    //   T <: Product with AnyVal,
-    //   M <: Mirror.ProductOf[T]
-    // ]: FieldInspectable[T] =
-    //   val m = compiletime.summonInline[M]
-    //   () => "AnyVal: " + typeName[T]
-
-    // inline given [
-    //   T <: Product with AnyVal
-    // ](using m: Mirror.ProductOf[T]): FieldInspectable[T] = () => "AnyVal: " + typeName[T]
-
-    // inline given [
-    //   T <: Product with AnyVal,
-    //   M <: Mirror.ProductOf[T]
-    // ]: FieldInspectable[T] = 
-    //   inline compiletime.erasedValue[M.MirroredElemTypes] match
-    //     case _: (fieldType *: fieldTypes) => 
-    //       () => "AnyVal: " + typeName[T] + " wrapping " + typeName[fieldType]
-    //     case _: EmptyTuple => () => compiletime.error("???")  
-
-    // inline given [T <: Product]
-    //   (using T <:< AnyVal)
-    //   (using m: Mirror.Of[T]): FieldInspectable[T] =
-    //     inline compiletime.erasedValue[m.MirroredElemTypes] match
-    //       case _: (fieldType *: fieldTypes) => 
-    //         () => "AnyVal: " + typeName[T] + " wrapping " + typeName[fieldType]
-    //       case _: EmptyTuple => compiletime.error("???")  
-
-*/
