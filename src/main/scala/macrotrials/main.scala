@@ -36,4 +36,6 @@ case class InterestingClass(
     println("==========")
     println()
 
+
+
     println(summon[Inspectable[InterestingClass]].inspect())

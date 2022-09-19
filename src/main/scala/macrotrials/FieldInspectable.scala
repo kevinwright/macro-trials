@@ -89,6 +89,19 @@ object FieldInspectable:
     Type.of[P] match
       case '[AnyVal] =>
         if anyValEnabled then
+          TypeTree.of[P].tpe.typeSymbol.caseFields.head.tree match {
+            case ValDef(name, tpt, rhs) =>
+              val AppliedType(reference, args) = TypeRepr.of[FieldInspectable[Int]]: @unchecked
+              val wanted = AppliedType(reference, List(tpt.tpe))
+
+              Implicits.search(wanted) match {
+                case iss: ImplicitSearchSuccess =>
+                  println(s"P tree success = ${iss.tree}}")
+                case isf: ImplicitSearchFailure => None
+                  println(s"P tree failure = $name ||| $tpt ||| $rhs ||| ${isf.explanation}")
+              }
+          }
+
           '{
             new FieldInspectable[P] {
               def inspect() = ${Expr(s"AnyVal: $name")}
