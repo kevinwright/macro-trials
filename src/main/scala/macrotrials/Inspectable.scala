@@ -43,7 +43,6 @@ object Inspectable:
     
     val fieldName = dequote(Type.show[MemberLbl])
     val fieldType = Type.show[MemberType]
-    // println(s"macrodebug: seeking $fieldName: $fieldType")
 
     val caseFieldTypes = determineCaseFieldTypes[ProdType]
 
@@ -107,7 +106,7 @@ object Inspectable:
       val className = constValue[m.MirroredLabel].toString
       val fieldInfos = inspectFields[P ,m.MirroredElemTypes, m.MirroredElemLabels ]
       override def inspect(): String =
-        className + ": " + fieldInfos.mkString("[", ", ", "] ")
+        className + ": " + fieldInfos.mkString("[\n  ", ",\n  ", "\n]")
 
 
   inline def derivedSum[T, M <: Mirror.SumOf[T]](m: M): Inspectable[T] = 

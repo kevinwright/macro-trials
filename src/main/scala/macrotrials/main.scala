@@ -22,9 +22,11 @@ case class InterestingClass(
     // println("The tree is: " + showTree(wi2))
     // println("The tree is: " + showTree(LegacyWrappedInt(42)))
 
-    // import InspectableFlags.Mixed.given
+    //import InspectableFlags.Neptune.given
     import InspectableFlags.FullMonty.given
+    // import InspectableFlags.Testing.given
 
+    // println(summon[InspectableFlags])
     println("FieldInspectables:")
     println(summon[FieldInspectable[Int]].inspect())
     println(summon[FieldInspectable[Float]].inspect())
@@ -33,6 +35,10 @@ case class InterestingClass(
     println(summon[FieldInspectable[WrappedInt]].inspect())
     println(summon[FieldInspectable[LegacyWrappedInt]].inspect())
     println(summon[FieldInspectable[InterestingClass]].inspect())
+    println(summon[FieldInspectable[List[Int]]].inspect())
+    println(summon[FieldInspectable[Set[Int]]].inspect())
+    println(summon[FieldInspectable[Map[String, LegacyWrappedInt]]].inspect())
+
     println("==========")
     println()
 

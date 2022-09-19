@@ -10,6 +10,9 @@ final class EnabledFalse extends EnabledFlag
 trait InspectableFlags {
   type AnyValIsInspectable <: EnabledFlag
   type CaseClassIsInspectable <: EnabledFlag
+  type SeqIsInspectable <: EnabledFlag
+  type SetIsInspectable <: EnabledFlag
+  type MapIsInspectable <: EnabledFlag
 }
 
 object InspectableFlags {
@@ -18,6 +21,9 @@ object InspectableFlags {
       new InspectableFlags {
         type AnyValIsInspectable = EnabledFalse
         type CaseClassIsInspectable = EnabledFalse
+        type SeqIsInspectable = EnabledFalse
+        type SetIsInspectable = EnabledFalse
+        type MapIsInspectable = EnabledFalse
       }
 
   object FullMonty:
@@ -25,13 +31,29 @@ object InspectableFlags {
       new InspectableFlags {
         type AnyValIsInspectable = EnabledTrue
         type CaseClassIsInspectable = EnabledTrue
+        type SeqIsInspectable = EnabledTrue
+        type SetIsInspectable = EnabledTrue
+        type MapIsInspectable = EnabledTrue
       }
 
-  object Mixed:
+  object Neptune:
     transparent inline given InspectableFlags =
       new InspectableFlags {
         type AnyValIsInspectable = EnabledTrue
         type CaseClassIsInspectable = EnabledFalse
+        type SeqIsInspectable = EnabledFalse
+        type SetIsInspectable = EnabledFalse
+        type MapIsInspectable = EnabledFalse
       }
+
+  object Testing:
+    transparent inline given InspectableFlags =
+      new InspectableFlags {
+        type AnyValIsInspectable = EnabledTrue
+        type CaseClassIsInspectable = EnabledFalse
+        type SeqIsInspectable = EnabledTrue
+        type SetIsInspectable = EnabledFalse
+        type MapIsInspectable = EnabledFalse
+      }    
 
 }

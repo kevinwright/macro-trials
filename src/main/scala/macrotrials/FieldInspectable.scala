@@ -9,7 +9,7 @@ import MacroUtils.*
   "You may be missing an `InspectableFlags` instance\n" +
   "Try one of the following:\n" +
   " - import macrotrials.InspectableFlags.PrimitivesOnly.given\n" +
-  " - import macrotrials.InspectableFlags.Mixed.given\n" +
+  " - import macrotrials.InspectableFlags.Neptune.given\n" +
   " - import macrotrials.InspectableFlags.FullMonty.given"
 )
 trait FieldInspectable[T]:
@@ -18,6 +18,7 @@ trait FieldInspectable[T]:
 object FieldInspectable:
 
   import scala.quoted.*
+  import scala.compiletime.erasedValue
 
   inline given FieldInspectable[Int] = () => "Int"
   inline given FieldInspectable[Long] = () => "Long"
@@ -25,7 +26,39 @@ object FieldInspectable:
   inline given FieldInspectable[Double] = () => "Double"
   inline given FieldInspectable[String] = () => "String"
 
-  transparent inline given [P <: Product, TheFlags <: InspectableFlags]
+  // inline given given_FieldInspectable_Seq[T, Coll[_] <: Seq[_], TheFlags <: InspectableFlags]
+  //   (using flags: TheFlags)
+  //   (using nested: FieldInspectable[T]): FieldInspectable[Coll[T]] =
+  //     inline erasedValue[flags.SeqIsInspectable] match
+  //       case _: EnabledFlag => 
+  //         () => s"Seq[${nested.inspect()}]"
+  //       case _ => compiletime.error("Sequence inspection not enabled")
+      
+  inline given [T, Coll[_] <: Iterable[_], TheFlags <: InspectableFlags]
+    (using flags: TheFlags)
+    (using nested: FieldInspectable[T]): FieldInspectable[Coll[T]] =
+      inline erasedValue[Coll[T]] match
+        case _: Seq[T] =>
+          inline erasedValue[flags.SeqIsInspectable] match
+            case _: EnabledTrue => 
+              () => s"Seq[${nested.inspect()}]"
+            case _ => compiletime.error("Seq inspection not enabled") 
+        case _: Set[T] =>
+          inline erasedValue[flags.SetIsInspectable] match
+            case _: EnabledTrue => 
+              () => s"Set[${nested.inspect()}]"
+            case _ => compiletime.error("Set inspection not enabled")     
+        case _ => compiletime.error("Unknown collection type")       
+
+  inline given [K, V, M[_,_] <: Map[_,_], TheFlags <: InspectableFlags]
+    (using flags: TheFlags)
+    (using keyIns: FieldInspectable[K], valIns: FieldInspectable[V]): FieldInspectable[M[K,V]] =
+      inline erasedValue[flags.MapIsInspectable] match
+        case _: EnabledTrue => 
+          () => s"Map[${keyIns.inspect()}, ${valIns.inspect()}]"
+        case _ => compiletime.error("Seq inspection not enabled") 
+
+  inline given [P <: Product, TheFlags <: InspectableFlags]
   (using flags: TheFlags): FieldInspectable[P] =
     ${productMacro[P, TheFlags]}
 
