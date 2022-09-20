@@ -111,15 +111,17 @@ object FieldInspectable:
     val anyValEnabled: Boolean = flags("AnyValIsInspectable")
     val caseClassEnabled: Boolean = flags("CaseClassIsInspectable")
 
+    def fieldInspectableTypeFor(tt: TypeRepr): AppliedType =
+      val AppliedType(reference, _) = TypeRepr.of[FieldInspectable[_]]: @unchecked
+      AppliedType(reference, List(tt))     
+
+
     Type.of[P] match
       case '[AnyVal] =>
         if anyValEnabled then
           TypeTree.of[P].tpe.typeSymbol.caseFields.head.tree match {
             case ValDef(valueName, tpt, rhs) =>
-              val AppliedType(reference, args) = TypeRepr.of[FieldInspectable[Int]]: @unchecked
-              val wanted = AppliedType(reference, List(tpt.tpe))
-
-              Implicits.search(wanted) match {
+              Implicits.search(fieldInspectableTypeFor(tpt.tpe)) match {
                 case iss: ImplicitSearchSuccess =>
                   // println(s"P tree success = ${iss.tree}}")
                   val nestedExpr = iss.tree.asExpr.asInstanceOf[Expr[FieldInspectable[_]]]
