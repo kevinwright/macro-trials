@@ -115,29 +115,49 @@ object FieldInspectable:
       val AppliedType(reference, _) = TypeRepr.of[FieldInspectable[_]]: @unchecked
       AppliedType(reference, List(tt))     
 
+    def withNestedInstance[T](tt: TypeRepr)(fn: Expr[FieldInspectable[_]] => Expr[T]): Expr[T] =
+      Implicits.search(fieldInspectableTypeFor(tt)) match {
+        case iss: ImplicitSearchSuccess =>
+          val foundExpr = iss.tree.asExpr.asInstanceOf[Expr[FieldInspectable[_]]]
+          fn(foundExpr)
+        case isf: ImplicitSearchFailure =>
+          '{compiletime.error(${Expr(isf.explanation)})}
+      }
 
     Type.of[P] match
       case '[AnyVal] =>
         if anyValEnabled then
           TypeTree.of[P].tpe.typeSymbol.caseFields.head.tree match {
             case ValDef(valueName, tpt, rhs) =>
-              Implicits.search(fieldInspectableTypeFor(tpt.tpe)) match {
-                case iss: ImplicitSearchSuccess =>
-                  // println(s"P tree success = ${iss.tree}}")
-                  val nestedExpr = iss.tree.asExpr.asInstanceOf[Expr[FieldInspectable[_]]]
-                  val classNameExpr = Expr(className)
-                  val valueNameExpr = Expr(valueName)
-                  '{
-                    new FieldInspectable[P] {
-                      val nestedInspect: String = $nestedExpr.inspect()
-                      val className: String = $classNameExpr
-                      val valueName: String = $valueNameExpr
-                      def inspect() = s"AnyVal: $className($valueName: $nestedInspect)"
-                    }
+              withNestedInstance(tpt.tpe) { nestedExpr =>
+                val classNameExpr = Expr(className)
+                val valueNameExpr = Expr(valueName)
+                '{
+                  new FieldInspectable[P] {
+                    val nestedInspect: String = $nestedExpr.inspect()
+                    val className: String = $classNameExpr
+                    val valueName: String = $valueNameExpr
+                    def inspect() = s"AnyVal: $className($valueName: $nestedInspect)"
                   }
-                case isf: ImplicitSearchFailure =>
-                  '{compiletime.error(${Expr(isf.explanation)})}
+                }
               }
+              // Implicits.search(fieldInspectableTypeFor(tpt.tpe)) match {
+              //   case iss: ImplicitSearchSuccess =>
+              //     // println(s"P tree success = ${iss.tree}}")
+              //     val nestedExpr = iss.tree.asExpr.asInstanceOf[Expr[FieldInspectable[_]]]
+              //     val classNameExpr = Expr(className)
+              //     val valueNameExpr = Expr(valueName)
+              //     '{
+              //       new FieldInspectable[P] {
+              //         val nestedInspect: String = $nestedExpr.inspect()
+              //         val className: String = $classNameExpr
+              //         val valueName: String = $valueNameExpr
+              //         def inspect() = s"AnyVal: $className($valueName: $nestedInspect)"
+              //       }
+              //     }
+              //   case isf: ImplicitSearchFailure =>
+              //     '{compiletime.error(${Expr(isf.explanation)})}
+              // }
             case _ => '{compiletime.error("This is uncomfortable")}
           }
         else '{compiletime.error("AnyVal inspection not enabled")}
