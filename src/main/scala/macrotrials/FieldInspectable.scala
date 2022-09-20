@@ -141,24 +141,7 @@ object FieldInspectable:
                   }
                 }
               }
-              // Implicits.search(fieldInspectableTypeFor(tpt.tpe)) match {
-              //   case iss: ImplicitSearchSuccess =>
-              //     // println(s"P tree success = ${iss.tree}}")
-              //     val nestedExpr = iss.tree.asExpr.asInstanceOf[Expr[FieldInspectable[_]]]
-              //     val classNameExpr = Expr(className)
-              //     val valueNameExpr = Expr(valueName)
-              //     '{
-              //       new FieldInspectable[P] {
-              //         val nestedInspect: String = $nestedExpr.inspect()
-              //         val className: String = $classNameExpr
-              //         val valueName: String = $valueNameExpr
-              //         def inspect() = s"AnyVal: $className($valueName: $nestedInspect)"
-              //       }
-              //     }
-              //   case isf: ImplicitSearchFailure =>
-              //     '{compiletime.error(${Expr(isf.explanation)})}
-              // }
-            case _ => '{compiletime.error("This is uncomfortable")}
+            case _ => '{compiletime.error("AnyVal doesn't appear to have a constructor param")}
           }
         else '{compiletime.error("AnyVal inspection not enabled")}
       case _ =>
