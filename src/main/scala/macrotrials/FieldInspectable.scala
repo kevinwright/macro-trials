@@ -13,41 +13,75 @@ import MacroUtils.*
   " - import macrotrials.InspectableFlags.FullMonty.given"
 )
 trait FieldInspectable[T]:
-  def inspect(): String
+  def summarise(): String
+  def inspect(t: T): String
 
 object FieldInspectable:
+
+  def summarise[T](using ins: FieldInspectable[T]): String = ins.summarise()
+  def inspect[T](value: T)(using ins: FieldInspectable[T]): String = ins.inspect(value)
 
   import scala.quoted.*
   import scala.compiletime.erasedValue
 
-  inline given FieldInspectable[Int] = () => "Int"
-  inline given FieldInspectable[Long] = () => "Long"
-  inline given FieldInspectable[Float] = () => "Float"
-  inline given FieldInspectable[Double] = () => "Double"
-  inline given FieldInspectable[String] = () => "String"
+  inline given FieldInspectable[Int] = new FieldInspectable[Int] {
+    override def summarise(): String = "Int"
+    override def inspect(t: Int): String = s"$t: Int"
+  }
+  inline given FieldInspectable[Long] = new FieldInspectable[Long] {
+    override def summarise(): String = "Long"
+    override def inspect(t: Long): String = s"$t: Long"
+  }
+  inline given FieldInspectable[Float] = new FieldInspectable[Float] {
+    override def summarise(): String = "Float"
+    override def inspect(t: Float): String = s"$t: Float"
+  }
+  inline given FieldInspectable[Double] = new FieldInspectable[Double] {
+    override def summarise(): String = "Double"
+    override def inspect(t: Double): String = s"$t: Double"
+  }
+  inline given FieldInspectable[String] = new FieldInspectable[String] {
+    override def summarise(): String = "String"
+    override def inspect(t: String): String = s"$t: String"
+  }
       
-  inline given [T, Coll[_] <: Iterable[_], TheFlags <: InspectableFlags]
+  transparent inline given [T, Coll[_] <: Iterable[_], TheFlags <: InspectableFlags]
     (using flags: TheFlags)
     (using nested: FieldInspectable[T]): FieldInspectable[Coll[T]] =
       inline erasedValue[Coll[T]] match
         case _: Seq[T] =>
           inline erasedValue[flags.SeqIsInspectable] match
             case _: EnabledTrue => 
-              () => s"Seq[${nested.inspect()}]"
+              new FieldInspectable[Seq[T]] {
+                override def summarise(): String =
+                  s"Seq[${nested.summarise()}]"
+                override def inspect(t: Seq[T]): String =
+                  t.map(nested.inspect).mkString("Seq(", ",", ")")
+              }.asInstanceOf[FieldInspectable[Coll[T]]]
             case _ => compiletime.error("Seq inspection not enabled") 
         case _: Set[T] =>
           inline erasedValue[flags.SetIsInspectable] match
             case _: EnabledTrue => 
-              () => s"Set[${nested.inspect()}]"
+              new FieldInspectable[Set[T]] {
+                override def summarise(): String =
+                  s"Set[${nested.summarise()}]"
+                override def inspect(t: Set[T]): String =
+                  t.map(nested.inspect).mkString("Set(", ",", ")")
+              }.asInstanceOf[FieldInspectable[Coll[T]]]
             case _ => compiletime.error("Set inspection not enabled")     
         case _ => compiletime.error("Unknown collection type")       
 
-  inline given [K, V, M[_,_] <: Map[_,_], TheFlags <: InspectableFlags]
+  inline given [K, V, TheFlags <: InspectableFlags]
     (using flags: TheFlags)
-    (using keyIns: FieldInspectable[K], valIns: FieldInspectable[V]): FieldInspectable[M[K,V]] =
+    (using keyIns: FieldInspectable[K], valIns: FieldInspectable[V]): FieldInspectable[Map[K,V]] =
       inline erasedValue[flags.MapIsInspectable] match
         case _: EnabledTrue => 
-          () => s"Map[${keyIns.inspect()}, ${valIns.inspect()}]"
+          new FieldInspectable[Map[K, V]] {
+            override def summarise(): String =
+              s"Map[${keyIns.summarise()}, ${valIns.summarise()}]"
+            override def inspect(t: Map[K, V]): String =
+              t.map((k,v) => keyIns.inspect(k) + "=" + valIns.inspect(v)).mkString("Map(", ",", ")")
+          }
         case _ => compiletime.error("Seq inspection not enabled") 
 
   inline given [P <: Product, TheFlags <: InspectableFlags]
@@ -58,7 +92,7 @@ object FieldInspectable:
     P: Type,
     TheFlags <: InspectableFlags : Type,
   ](using Quotes): Expr[FieldInspectable[P]] =
-    import quotes.reflect._
+    import quotes.reflect.*
     val className = Type.show[P]
     val flagsType = TypeTree.of[TheFlags].tpe
 
@@ -111,17 +145,17 @@ object FieldInspectable:
     val anyValEnabled: Boolean = flags("AnyValIsInspectable")
     val caseClassEnabled: Boolean = flags("CaseClassIsInspectable")
 
-    def fieldInspectableTypeFor(tt: TypeRepr): AppliedType =
+    def nestedInstanceFor(tt: TypeRepr): AppliedType =
       val AppliedType(reference, _) = TypeRepr.of[FieldInspectable[_]]: @unchecked
       AppliedType(reference, List(tt))     
 
-    def withNestedInstance[T](tt: TypeRepr)(fn: Expr[FieldInspectable[_]] => Expr[T]): Expr[T] =
-      Implicits.search(fieldInspectableTypeFor(tt)) match {
+    def withNestedInstance[R](tt: TypeRepr)(fn: Expr[FieldInspectable[_]] => Expr[R]): Expr[R] =
+      Implicits.search(nestedInstanceFor(tt)) match {
         case iss: ImplicitSearchSuccess =>
-          val foundExpr = iss.tree.asExpr.asInstanceOf[Expr[FieldInspectable[_]]]
-          fn(foundExpr)
+          val instance = iss.tree.asExpr.asInstanceOf[Expr[FieldInspectable[_]]]
+          fn(instance)
         case isf: ImplicitSearchFailure =>
-          '{compiletime.error(${Expr(isf.explanation)})}
+          report.errorAndAbort(isf.explanation)
       }
 
     Type.of[P] match
@@ -134,34 +168,37 @@ object FieldInspectable:
                 val valueNameExpr = Expr(valueName)
                 '{
                   new FieldInspectable[P] {
-                    val nestedInspect: String = $nestedExpr.inspect()
+                    val nestedSummary: String = $nestedExpr.summarise()
                     val className: String = $classNameExpr
                     val valueName: String = $valueNameExpr
-                    def inspect() = s"AnyVal: $className($valueName: $nestedInspect)"
+                    override def summarise(): String = s"AnyVal: $className($valueName: $nestedSummary)"
+                    override def inspect(t: P): String = ???
                   }
                 }
               }
-            case _ => '{compiletime.error("AnyVal doesn't appear to have a constructor param")}
+            case _ => report.errorAndAbort("AnyVal doesn't appear to have a constructor param")
           }
-        else '{compiletime.error("AnyVal inspection not enabled")}
+        else report.errorAndAbort("AnyVal inspection not enabled")
       case _ =>
         if caseClassEnabled then
           '{
             new FieldInspectable[P] {
-              def inspect() = ${Expr(s"Case Class: $className")}
+              override def summarise(): String = ${Expr(s"Case Class: $className")}
+              override def inspect(t: P): String = ???
             }
           }
-        else '{compiletime.error("case class inspection not enabled")}
+        else report.errorAndAbort("case class inspection not enabled")
 
   object UnknownInstance:
     inline given [T]: FieldInspectable[T] = ${unknownMacro[T]}
 
     private def unknownMacro[T](using Type[T])(using Quotes): Expr[FieldInspectable[T]] =
-      import quotes.reflect._
+      import quotes.reflect.*
       val name = TypeTree.of[T].show
       '{
         new FieldInspectable[T] {
-          def inspect() = ${Expr(name)}
+          override def summarise(): String = ${Expr(name)}
+          override def inspect(t: T): String = ???
         }
       }
 

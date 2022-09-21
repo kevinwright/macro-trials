@@ -1,15 +1,16 @@
 package macrotrials
 
 trait Inspectable[T]:
-  def inspect(): String
-
+  def summarise(): String
+  def inspect(t: T): String
 
 object Inspectable:
   import deriving.*
   import scala.compiletime.*
   import scala.quoted.*
 
-  def inspect[CC <: Product](using ins: Inspectable[CC]): String = ins.inspect()
+  def summarise[CC <: Product](using ins: Inspectable[CC]): String = ins.summarise()
+  def inspect[CC <: Product](value: CC)(using ins: Inspectable[CC]): String = ins.inspect(value)
   
   inline given derived[T](using m: Mirror.Of[T]): Inspectable[T] =
     inline m match
@@ -54,7 +55,7 @@ object Inspectable:
     val fieldNameExpr = Expr(fieldName)
 
     val fieldTypeExpr = Expr.summon[FieldInspectable[MemberType]] match {
-      case Some(fi) => '{ $fi.inspect() }
+      case Some(fi) => '{ $fi.summarise() }
       case _ => '{ "???" }
     }
 
@@ -91,22 +92,24 @@ object Inspectable:
     yield
       name -> tpe.tpe
 
-  inline private def inspectFields[ProductType, FieldTypes <: Tuple, Labels <: Tuple]: List[FieldInfo] =
+  inline private def deriveFields[ProductType, FieldTypes <: Tuple, Labels <: Tuple]: List[FieldInfo] =
     inline erasedValue[FieldTypes] match
       case _: (fieldType *: fieldTypes) =>
         inline erasedValue[Labels] match
           case _: (fieldLabel *: fieldLabels) =>
             val fieldInfo = mkFieldInfo[ProductType, fieldLabel, fieldType]
-            fieldInfo :: inspectFields[ProductType, fieldTypes, fieldLabels]
+            fieldInfo :: deriveFields[ProductType, fieldTypes, fieldLabels]
           case _: EmptyTuple => compiletime.error("LOGIC ERROR: Ran out of field labels for field types")
       case _: EmptyTuple => Nil  
 
   inline def derivedProduct[P, M <: Mirror.ProductOf[P]](m: M): Inspectable[P] =
     new Inspectable[P]:
       val className = constValue[m.MirroredLabel].toString
-      val fieldInfos = inspectFields[P ,m.MirroredElemTypes, m.MirroredElemLabels ]
-      override def inspect(): String =
+      val fieldInfos = deriveFields[P ,m.MirroredElemTypes, m.MirroredElemLabels ]
+      override def summarise(): String =
         className + ": " + fieldInfos.mkString("[\n  ", ",\n  ", "\n]")
+      override def inspect(value: P): String =
+        className + ": " + fieldInfos.mkString("[\n  ", ",\n  ", "\n]")  
 
 
   inline def derivedSum[T, M <: Mirror.SumOf[T]](m: M): Inspectable[T] = 
