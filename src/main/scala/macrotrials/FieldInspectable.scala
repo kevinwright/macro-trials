@@ -13,8 +13,9 @@ import MacroUtils.*
   " - import macrotrials.InspectableFlags.FullMonty.given"
 )
 trait FieldInspectable[T]:
+  type InspectedT = T
   def summarise(): String
-  def inspect(t: T): String
+  def inspect(t: InspectedT): String
 
 object FieldInspectable:
 
@@ -152,7 +153,7 @@ object FieldInspectable:
     def withNestedInstance[R](tt: TypeRepr)(fn: Expr[FieldInspectable[_]] => Expr[R]): Expr[R] =
       Implicits.search(nestedInstanceFor(tt)) match {
         case iss: ImplicitSearchSuccess =>
-          val instance = iss.tree.asExpr.asInstanceOf[Expr[FieldInspectable[_]]]
+          val instance = iss.tree.asExprOf[FieldInspectable[_]]
           fn(instance)
         case isf: ImplicitSearchFailure =>
           report.errorAndAbort(isf.explanation)
@@ -161,18 +162,33 @@ object FieldInspectable:
     Type.of[P] match
       case '[AnyVal] =>
         if anyValEnabled then
-          TypeTree.of[P].tpe.typeSymbol.caseFields.head.tree match {
+          val typeRepr: TypeRepr = TypeTree.of[P].tpe
+          val typeSym: Symbol = typeRepr.typeSymbol
+          val getterSym: Symbol = typeSym.caseFields.head
+          getterSym.tree match {
             case ValDef(valueName, tpt, rhs) =>
-              withNestedInstance(tpt.tpe) { nestedExpr =>
+              val nestedTypeRepr = tpt.tpe
+              val nestedType = nestedTypeRepr.asType
+              withNestedInstance(nestedTypeRepr) { nestedExpr =>
                 val classNameExpr = Expr(className)
                 val valueNameExpr = Expr(valueName)
+                // val memberGetExpr = Applied(getterSym.typeRef, Nil).asExpr
+                // val valueGetExpr = typeRepr.select(getterSym).asExpr
+                // typeSym.primaryConstructor.termRef.appliedTo()
                 '{
                   new FieldInspectable[P] {
-                    val nestedSummary: String = $nestedExpr.summarise()
+                    val nestedInspectable = $nestedExpr
+                    val nestedSummary: String = nestedInspectable.summarise()
+                    def nestedInspection(t: P): String =
+                      nestedInspectable.inspect(
+                        ${ '{t}.asTerm.select(getterSym).asExpr }.asInstanceOf[nestedInspectable.InspectedT]
+                      )
                     val className: String = $classNameExpr
                     val valueName: String = $valueNameExpr
-                    override def summarise(): String = s"AnyVal: $className($valueName: $nestedSummary)"
-                    override def inspect(t: P): String = ???
+                    override def summarise(): String =
+                      s"AnyVal: $className($valueName: $nestedSummary)"
+                    override def inspect(t: P): String =
+                      s"AnyVal: $className($valueName: ${nestedInspection(t)})"
                   }
                 }
               }

@@ -47,7 +47,7 @@ case class InterestingClass(
     println(FieldInspectable.inspect(42.0d))
     println(FieldInspectable.inspect("foo"))
     println(FieldInspectable.inspect(WrappedInt(42)))
-    // println(FieldInspectable.inspect(LegacyWrappedInt(42)))
+    println(FieldInspectable.inspect(LegacyWrappedInt(42)))
     println(FieldInspectable.inspect(List(1,2,3)))
     println(FieldInspectable.inspect(Set(1,2,3)))
     println(FieldInspectable.inspect(Map("a" -> 1, "b" -> 2)))
