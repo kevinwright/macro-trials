@@ -172,9 +172,6 @@ object FieldInspectable:
               withNestedInstance(nestedTypeRepr) { nestedExpr =>
                 val classNameExpr = Expr(className)
                 val valueNameExpr = Expr(valueName)
-                // val memberGetExpr = Applied(getterSym.typeRef, Nil).asExpr
-                // val valueGetExpr = typeRepr.select(getterSym).asExpr
-                // typeSym.primaryConstructor.termRef.appliedTo()
                 '{
                   new FieldInspectable[P] {
                     val nestedInspectable = $nestedExpr
