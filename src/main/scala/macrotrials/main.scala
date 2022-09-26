@@ -54,3 +54,6 @@ case class InterestingClass(
     // println(summon[FieldInspectable[InterestingClass]].summarise())
     println("==========")
     println()
+
+     println(summon[FieldInspectable[WrappedInt]].instance(31))
+     println(summon[FieldInspectable[LegacyWrappedInt]].instance(99))
