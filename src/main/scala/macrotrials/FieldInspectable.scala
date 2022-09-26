@@ -188,63 +188,59 @@ object FieldInspectable:
   class AnyValFieldInspectable(using Quotes):
     import quotes.reflect.*
 
-    private def nestedInstanceFor(tt: TypeRepr): AppliedType =
-      val AppliedType(reference, _) = TypeRepr.of[FieldInspectable[_]]: @unchecked
-      AppliedType(reference, List(tt))     
-
-    private def withNestedInstance[R](tt: TypeRepr)(fn: Expr[FieldInspectable[_]] => Expr[R]): Expr[R] =
-      Implicits.search(nestedInstanceFor(tt)) match {
-        case iss: ImplicitSearchSuccess =>
-          val instance = iss.tree.asExprOf[FieldInspectable[_]]
-          fn(instance)
-        case isf: ImplicitSearchFailure =>
-          report.errorAndAbort(isf.explanation)
-      }
+    private def nestedInstanceFor[R](tt: TypeRepr): Expr[FieldInspectable[_]] =
+      TypeRepr.of[FieldInspectable[_]] match
+        case AppliedType(reference, _) =>
+          val sought = AppliedType(reference, List(tt))
+          Implicits.search(sought) match
+            case iss: ImplicitSearchSuccess =>
+              iss.tree.asExprOf[FieldInspectable[_]]
+            case isf: ImplicitSearchFailure =>
+              report.errorAndAbort(isf.explanation)
+        case other => report.errorAndAbort(s"Unexpected: ${other.show}")
 
     def generate[P: Type]: Expr[FieldInspectable[P]] =
       val className = Type.show[P]
-      val typeRepr: TypeRepr = TypeTree.of[P].tpe
-      val typeSym: Symbol = typeRepr.typeSymbol
-      val getterSym: Symbol = typeSym.caseFields.head
-      val companionSym = typeSym.companionModule
+      val classSym: Symbol = TypeTree.of[P].tpe.typeSymbol
 
+      val getterSym: Symbol = classSym.caseFields.head
+      val companionSym = classSym.companionModule
 
       getterSym.tree match {
-        case ValDef(valueName, tpt, rhs) =>
+        case ValDef(valueName, tpt, _) =>
           val nestedTypeRepr = tpt.tpe
           val nestedType = nestedTypeRepr.asType
-          withNestedInstance(nestedTypeRepr) { nestedExpr =>
-            nestedType match {
-              case '[underlying] =>
-                val companionIdent = Ident(companionSym.termRef)
-                val companionApply = Select.unique(companionIdent, "apply")
-                val classNameExpr = Expr(className)
-                val valueNameExpr = Expr(valueName)
-                '{
-                  new FieldInspectable[P] {
-                    val nestedInspectable = $nestedExpr
-                    type Underlying = underlying
-                    val nestedSummary: String = nestedInspectable.summarise()
-                    def nestedInspection(x: P): String =
-                      nestedInspectable.inspect(
-                        ${
-                          '{x}.asTerm.select(getterSym).asExpr
-                        }.asInstanceOf[nestedInspectable.InspectedT]
-                      )
-                    val className: String = $classNameExpr
-                    val valueName: String = $valueNameExpr
-                    override def summarise(): String =
-                      s"AnyVal: $className($valueName: $nestedSummary)"
-                    override def inspect(t: P): String =
-                      s"AnyVal: $className($valueName: ${nestedInspection(t)})"
-                    def instance(x: underlying): P =
+          val nestedInspectableExpr = nestedInstanceFor(nestedTypeRepr)
+          nestedType match {
+            case '[underlying] =>
+              val companionIdent = Ident(companionSym.termRef)
+              val companionApply = Select.unique(companionIdent, "apply")
+              val classNameExpr = Expr(className)
+              val valueNameExpr = Expr(valueName)
+              '{
+                new FieldInspectable[P] {
+                  val nestedInspectable = $nestedInspectableExpr
+                  type Underlying = underlying
+                  val nestedSummary: String = nestedInspectable.summarise()
+                  def nestedInspection(x: P): String =
+                    nestedInspectable.inspect(
                       ${
-                        val arg = '{x}.asTerm
-                        Apply(companionApply, arg :: Nil).asExprOf[P]
-                      }
-                  }
+                        '{x}.asTerm.select(getterSym).asExpr
+                      }.asInstanceOf[nestedInspectable.InspectedT]
+                    )
+                  val className: String = $classNameExpr
+                  val valueName: String = $valueNameExpr
+                  override def summarise(): String =
+                    s"AnyVal: $className($valueName: $nestedSummary)"
+                  override def inspect(t: P): String =
+                    s"AnyVal: $className($valueName: ${nestedInspection(t)})"
+                  def instance(x: underlying): P =
+                    ${
+                      val arg = '{x}.asTerm
+                      Apply(companionApply, arg :: Nil).asExprOf[P]
+                    }
                 }
-            }
+              }
           }
         case _ => report.errorAndAbort("AnyVal doesn't appear to have a constructor param")
       }
