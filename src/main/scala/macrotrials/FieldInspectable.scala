@@ -111,48 +111,23 @@ object FieldInspectable:
 
   private def productMacro[
     P: Type,
-    TheFlags <: InspectableFlags : Type,
+    TheFlags <: InspectableFlags : Type
   ](using Quotes): Expr[FieldInspectable[P]] =
-    import quotes.reflect.*
-    val className = Type.show[P]
-    val flagsType = TypeTree.of[TheFlags].tpe
+    new FieldInspectableMacros[P, TheFlags].handleProduct
 
-    // RefinedType(
-    //   parent = RefinedType(
-    //     parent = TypeRef(
-    //       repr = ThisType(TypeRef(NoPrefix,module class macrotrials)),
-    //       name = trait InspectableFlags
-    //     ),
-    //     name = AnyValIsInspectable,
-    //     info = TypeBounds(
-    //       lo = TypeRef(
-    //         repr = ThisType(TypeRef(NoPrefix,module class macrotrials)),
-    //         name = class EnabledTrue
-    //       ),
-    //       hi = TypeRef(
-    //         repr = ThisType(TypeRef(NoPrefix,module class macrotrials)),
-    //         name = class EnabledTrue
-    //       )
-    //     )
-    //   ),
-    //   name = CaseClassIsInspectable,
-    //   info = TypeBounds(
-    //     lo = TypeRef(
-    //       repr = ThisType(TypeRef(NoPrefix,module class macrotrials)),
-    //       name = class EnabledFalse
-    //     ),
-    //     hi = TypeRef(
-    //       repr = ThisType(TypeRef(NoPrefix,module class macrotrials)),
-    //       name = class EnabledFalse
-    //     )
-    //   )
-    // )
-    
+  class FieldInspectableMacros[
+    P: Type,
+    TheFlags <: InspectableFlags : Type,
+  ](using Quotes):
+    import quotes.reflect.*
+
+    private val className = Type.show[P]
+    private val flagsType = TypeTree.of[TheFlags].tpe
 
     // Every type member in `TheFlags` adds another level of nesting to the resulting
     // `RefinedType` tree, so we drag 'em all out using recursion
 
-    val flags =
+    private val flags =
       def loop(acc: Map[String, Boolean], tpe: TypeRepr): Map[String, Boolean] =
         tpe match {
           case Refinement(parent, flagName, TypeBounds(_,TypeRef(_,enabledType))) =>
@@ -163,30 +138,25 @@ object FieldInspectable:
         }
       loop(Map.empty, TypeTree.of[TheFlags].tpe)
 
-    val anyValEnabled: Boolean = flags("AnyValIsInspectable")
-    val caseClassEnabled: Boolean = flags("CaseClassIsInspectable")
+    private val anyValEnabled: Boolean = flags("AnyValIsInspectable")
+    private val caseClassEnabled: Boolean = flags("CaseClassIsInspectable")
 
-
-
-    Type.of[P] match
-      case '[AnyVal] =>
-        if anyValEnabled then
-          (new AnyValFieldInspectable).generate[P]
-        else report.errorAndAbort("AnyVal inspection not enabled")
-      case _ =>
-        if caseClassEnabled then
-          '{
-            new FieldInspectable[P] {
-              type Underlying = P
-              override def summarise(): String = ${Expr(s"Case Class: $className")}
-              override def inspect(t: P): String = ???
-              def instance(u: Underlying): P = ???
+    def handleProduct: Expr[FieldInspectable[P]] =
+      Type.of[P] match
+        case '[AnyVal] =>
+          if anyValEnabled then handleAnyVal
+          else report.errorAndAbort("AnyVal inspection not enabled")
+        case _ =>
+          if caseClassEnabled then
+            '{
+              new FieldInspectable[P] {
+                type Underlying = P
+                override def summarise(): String = ${Expr(s"Case Class: $className")}
+                override def inspect(t: P): String = ???
+                def instance(u: Underlying): P = ???
+              }
             }
-          }
-        else report.errorAndAbort("case class inspection not enabled")
-
-  class AnyValFieldInspectable(using Quotes):
-    import quotes.reflect.*
+          else report.errorAndAbort("case class inspection not enabled")
 
     private def nestedInstanceFor[R](tt: TypeRepr): Expr[FieldInspectable[_]] =
       TypeRepr.of[FieldInspectable[_]] match
@@ -199,8 +169,7 @@ object FieldInspectable:
               report.errorAndAbort(isf.explanation)
         case other => report.errorAndAbort(s"Unexpected: ${other.show}")
 
-    def generate[P: Type]: Expr[FieldInspectable[P]] =
-      val className = Type.show[P]
+    private def handleAnyVal: Expr[FieldInspectable[P]] =
       val classSym: Symbol = TypeTree.of[P].tpe.typeSymbol
 
       val getterSym: Symbol = classSym.caseFields.head
@@ -244,8 +213,6 @@ object FieldInspectable:
           }
         case _ => report.errorAndAbort("AnyVal doesn't appear to have a constructor param")
       }
-
-    // private def build[P: Type, Companion: Type]
 
   object UnknownInstance:
     transparent inline given [T]: FieldInspectable[T] = ${unknownMacro[T]}
